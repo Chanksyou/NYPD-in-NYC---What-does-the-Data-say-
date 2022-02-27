@@ -1,0 +1,195 @@
+---
+title: "Data Science as a Field - R Markdown Assignment"
+author: "Chandan Saha "
+date: "2/26/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#       NYPD Shooting Data 2006-2020
+## Packages used for this Project include:
+              tidyverse
+              lubridate
+
+```{r packages, include=FALSE}
+library(tidyverse) 
+library(lubridate)
+library(reshape2)
+```
+
+
+# Purpose
+
+The purpose of this study is to take a deeper dive into the shooting data of the NYPD from 2006 to 2020.  In New York City, there are two schools of thought regarding the NYPD.  One side wants to de-fund the police and redistribute those funds to other city agencies.  The other side states that there is a rise in crime in NYC and the NYPD is needed now more than ever.  
+We will take a look at the shooting data to see if there is a rise in crime and if so, how and when it has happened.
+
+
+# Import
+
+We will be importing public data involving NYPD shooting incident rates (Historic).
+
+To import the data we will use the public data located at
+
+<https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD>
+
+
+Using the read_csv command, we can import the data into R.
+
+```{r 1, message=FALSE, results='hide',}
+shooting_data = read_csv("https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD")
+```
+
+# Tidy and Clean
+
+Now that the data in imported will first take a look at the data, then we will proceed to clean it. 
+
+To take a quick look at the data we can use commands such as summary.
+
+```{r 2, include=TRUE}
+summary(shooting_data)
+
+```
+
+Using this summary method, we are able to see all the columns and even some more information about the columns themselves, such as the data types that are in those columns.  In this case, using the summary method, we were able to see that the __OCCUR_DATE__ column is a character class, when it should really be a date time class.  To fix this, we can use the _lubridate_ library to turn the date into a date-time format.  In this case we would use the following code:
+
+```{r 3, include=TRUE}
+library(lubridate)
+shooting_data$OCCUR_DATE <- mdy(shooting_data$OCCUR_DATE, tz=Sys.timezone())
+shooting_data
+```
+
+You can see that the __OCCUR_DATE__ column now is represented with _dttm_ instead of _chr_.
+
+Next, looking at all the different columns, we see that there are many that have NA's and some columns we would not be interested in for this project. 
+
+* Columns we aren't interested in:
+    + latitude 
+    + longitude 
+    + x_coord
+    + y_coord 
+    + location_desc 
+    + perp_age_group 
+    + perp_sex, 
+    + perp_race  
+
+To remove these unwanted columns we can simply make shooting_data a subset of the original dataset.
+
+```{r 4, include=TRUE}
+shooting_data <- select(shooting_data, -Latitude, - Longitude, -Lon_Lat, -X_COORD_CD, -Y_COORD_CD, -PERP_SEX, -PERP_RACE, -PERP_AGE_GROUP)
+```
+
+# Visualization and Analysis
+
+Now our data looks much more usable and from this data, I see that there are 5 boroughs in New York City, and that makes me curious as to the relative rates of shootings in these different Boroughs.  Looking at the total number of shootings in each Borough can give us a deeper insight into how these Boroughs compare when it comes to the number of shootings from 2006-2020.
+
+To do this we need to make a smaller table adding up the instances of shootings in each Borough.
+
+```{r 5, include=TRUE}
+boro_data <- table(shooting_data$BORO)
+boro_data <- as.data.frame(boro_data)
+boro_data
+```
+
+Graphing this data will make the relationship much more clear.  To do this we use the __ggplot__ command.
+
+```{r 6, include=TRUE}
+ggplot(data = boro_data, mapping = aes( x = Var1, y = Freq)) + geom_col()
+```
+
+Now that we have the data comparing the Boroughs to each other, we also should look at the Boroughs individually to see if they follow this pattern every year or if there have been changes over the course of the time period of this data.
+
+# Further Analysis
+
+In order to look at the Boroughs individually, we first take a subset of the __shooting_data__ representing one of the Boroughs and its __OCCUR_DATE__.
+
+```{r bronxinitial, include=TRUE}
+Bronx <- subset(shooting_data, BORO=='BRONX', select = c(BORO, OCCUR_DATE))
+```
+Since our data for __OCCUR_DATE__ is in year/month/day format, and we want only the year, we use the _lubridate_ library to extract just the year.  Afterwards we are able to graph the data.  We add a trendline to model our data using __geom_smooth__
+
+```{r bronxrest, include=TRUE}
+Bronx$YEAR <- year(Bronx$OCCUR_DATE)
+Bronx <- subset(Bronx, select = -c(OCCUR_DATE))
+Bronx <- table(Bronx$YEAR)
+Bronx <- as.data.frame(Bronx)
+ggplot(data = Bronx, mapping = aes( x = Var1, y = Freq, group = 1)) + geom_line() + geom_smooth() + labs(title = "Bronx Shootings from 2006-2020", x = "Year", y = "Number of Shootings")
+```
+
+Repeating this for the other 4 Boroughs we obtain:
+
+
+```{r brooklyn, echo=FALSE, out.width="80%"}
+Brooklyn <- subset(shooting_data, BORO=='BROOKLYN', select = c(BORO, OCCUR_DATE))
+Brooklyn$YEAR <- year(Brooklyn$OCCUR_DATE)
+Brooklyn <- subset(Brooklyn, select = -c(OCCUR_DATE))
+Brooklyn <- table(Brooklyn$YEAR)
+Brooklyn <- as.data.frame(Brooklyn)
+ggplot(data = Brooklyn, mapping = aes( x = Var1, y = Freq, group = 1)) + geom_line() + geom_smooth() + labs(title = "Brooklyn Shootings from 2006-2020", x = "Year", y = "Number of Shootings")
+```
+
+```{r queens, echo=FALSE, out.width="80%"}
+Queens <- subset(shooting_data, BORO=='QUEENS', select = c(BORO, OCCUR_DATE))
+Queens$YEAR <- year(Queens$OCCUR_DATE)
+Queens <- subset(Queens, select = -c(OCCUR_DATE))
+Queens <- table(Queens$YEAR)
+Queens <- as.data.frame(Queens)
+ggplot(data = Queens, mapping = aes( x = Var1, y = Freq, group = 1)) + geom_line() + geom_smooth() + labs(title = "Queens Shootings from 2006-2020", x = "Year", y = "Number of Shootings")
+```
+
+
+```{r manhattan, echo=FALSE, out.width="80%"}
+Manhattan <- subset(shooting_data, BORO=='MANHATTAN', select = c(BORO, OCCUR_DATE))
+Manhattan$YEAR <- year(Manhattan$OCCUR_DATE)
+Manhattan <- subset(Manhattan, select = -c(OCCUR_DATE))
+Manhattan <- table(Manhattan$YEAR)
+Manhattan <- as.data.frame(Manhattan)
+ggplot(data = Manhattan, mapping = aes( x = Var1, y = Freq, group = 1)) + geom_line() + geom_smooth() + labs(title = "Manhattan Shootings from 2006-2020", x = "Year", y = "Number of Shootings")
+```
+
+```{r staten_island, echo=FALSE, out.width="80%"}
+Staten_island <- subset(shooting_data, BORO=='STATEN ISLAND', select = c(BORO, OCCUR_DATE))
+Staten_island$YEAR <- year(Staten_island$OCCUR_DATE)
+Staten_island <- subset(Staten_island, select = -c(OCCUR_DATE))
+Staten_island <- table(Staten_island$YEAR)
+Staten_island <- as.data.frame(Staten_island)
+ggplot(data = Staten_island, mapping = aes( x = Var1, y = Freq, group = 1)) + geom_line() + geom_smooth() + labs(title = "Staten Island Shootings from 2006-2020", x = "Year", y = "Number of Shootings")
+```
+
+
+# Bias
+
+Sources of bias include levels of personal bias and possible bias in the data collected.  Living in NYC for the last 27 years inherently makes me biased for this data set since I live in the area this data was collected from.  This bias is impossible to eliminate without working with a different data set.   
+Some other sources of bias in this data set could just be the way the Police System is set up in New York City.  Boroughs with more police stations or areas with more density could have more shooting reports.  Cases where these incidents are not recorded could be more prevalent in Boroughs which are less dense.  This bias was slightly mitigated by looking at the overall Borough populations.  Going further you can calculate population density and police station density and use these numbers to better frame the results.
+
+# Conclusion
+
+After looking at the data and the graphs, some additional information was also researched.  In order to get a better idea of the relationship of the populations of each Borough, the Census data was looked at to find the reported populations of each NYC Borough.  The data can be found at <https://www.citypopulation.de/en/usa/newyorkcity/>
+
+* Population Census 2020-04-01
+    1. Brooklyn - 2,736,074
+    2. Queens - 2,405,464
+    3. Manhattan - 1,694,251
+    4. Bronx - 1,472,654
+    5. Staten Island - 495,747
+
+This data shows us that while Brooklyn has the highest population and also the highest incidents of shooting, it still has almost 3 times more incidents than Queens, which has about 87% the population of Brooklyn.  The rate of incidents is also high for the Bronx when compared to the other Boroughs.    
+
+When looking at the Borough data individually, there are some interesting patterns that emerge.  Every Borough seems to follow the same trend, which is that the rate of shooting incidents, from 2006-2020 follows a downward trend until 2020.  For the year 2020, every Borough had a major uptick in incidents.  A likely reason for this would be due to the COVID-19 pandemic.   
+
+Thank you for reading!  
+
+     
+       
+         
+           
+
+
+```{R session info }
+sessionInfo()
+```
+
